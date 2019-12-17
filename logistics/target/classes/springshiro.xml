@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd">
+	
+	
+	<!-- shiro为集成springMvc 拦截异常 -->
+	<bean
+		class="org.springframework.web.servlet.handler.SimpleMappingExceptionResolver">
+		<property name="exceptionMappings">
+			<props>
+				<!-- 没有权限异常跳转的页面,如果项目配置视图解析，必须按照视图解析器的路径配置提示页面 -->
+				<prop key="org.apache.shiro.authz.UnauthorizedException">unauthorized</prop>
+			</props>
+		</property>
+	</bean>
+	
+		<!-- 开启aop，对代理类 -->
+	<aop:config proxy-target-class="true"/>
+
+	<!-- 开启shiro的注解支持 -->
+	<bean class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+		<!-- 注入安全管理器 -->
+		<property name="securityManager" ref="securityManager"/>
+	</bean>
+	
+	
+	<!-- 自定义退出登录过滤器 -->
+	<bean id="myLogoutFilter" class="org.apache.shiro.web.filter.authc.LogoutFilter">
+		<!-- 自定义退出登录跳转页面 -->
+		<property name="redirectUrl" value="/login.jsp"/>
+	</bean>
+	
+	<!-- 自定义表单认证过滤器 -->
+	<bean id="myFormAuthenticationFilter" class="cn.zj.logistics.shiro.MyFormAuthenticationFilter">
+		<property name="usernameParam" value="username"/>
+		<property name="passwordParam" value="password"/>
+		<property name="rememberMeParam" value="rememberMe"/>
+	</bean>
+	
+	
+	<!-- Shiro框架的核心过滤器 -->
+	<bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+		
+		<!-- 配置自定义过滤器 -->
+		<property name="filters">
+			<map>
+				<entry key="logout" value-ref="myLogoutFilter"/>
+				<entry key="authc" value-ref="myFormAuthenticationFilter"/>
+			</map>
+		</property>
+		
+		<!-- 配置认证失败页面 -->
+		<property name="loginUrl" value="/admin/login.do"/>
+		<!-- 认证成功页面 -->
+		<property name="successUrl" value="/index.do"/>
+		<!-- 配置认证成功以后访问没有权限页面跳转的提示页面：注解配置权限无效 -->
+		<!-- <property name="unauthorizedUrl"  value="unauthorized.jsp"/> -->
+		
+		<!-- 配置安全管理器 -->
+		<property name="securityManager" ref="securityManager"/>
+		
+		
+		<!-- 配置过滤器链 -->
+		<property name="filterChainDefinitions">
+			<value>
+			
+				<!-- 匿名过滤器，放行不需要安全处理的资源，静态资源 -->
+				/lib/**=anon
+				/static/**=anon
+				<!-- 登录页面 -->
+				/login.jsp=anon
+				<!-- 验证码页面 -->
+				/verifyCode.jsp=anon
+				
+				<!-- 退出登录 -->
+				/logout.do=logout
+				
+				<!-- 配置授权过滤器 -->
+				<!-- 
+				/admin/adminPage.do=perms[admin:adminPage]
+				/admin/list.do=perms[admin:list]
+				 -->
+				
+				<!-- 设置记住我默认访问页面 -->
+				/index.do=user
+				
+				<!-- 需要认证的资源，配置表单认证过滤器 -->
+				/**=authc
+			</value>
+		</property>
+		
+	
+	</bean>
+	<!-- 配置安全管理器 -->
+	<bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+		<!-- 配置realm -->
+		<property name="realm" ref="customRealm"/>
+		
+		<!-- 配置缓存管理器 -->
+		<property name="cacheManager" ref="cacheManager"/>
+		
+		<!-- 配置会话管理 -->
+		<property name="sessionManager" ref="sessionManager"/>
+		
+		<!-- 配置记住我管理器 -->
+		<property name="rememberMeManager" ref="rememberMeManager"/>
+		
+	</bean>
+	
+	<!-- 配置记住我管理器 -->
+	<bean id="rememberMeManager" class="org.apache.shiro.web.mgt.CookieRememberMeManager">
+		
+		<property name="cookie" >
+			<bean class="org.apache.shiro.web.servlet.SimpleCookie">
+				<constructor-arg value="rememberMe" />
+				<property name="maxAge" value="#{3600 * 24 * 3}"/>
+			</bean>
+		</property>
+	
+	</bean>
+	
+	<!-- 配置会话管理 -->
+	<bean id="sessionManager" class="org.apache.shiro.web.session.mgt.DefaultWebSessionManager">
+		<property name="globalSessionTimeout" value="#{1000 * 60 * 10}"/>
+		<property name="deleteInvalidSessions" value="true"/>
+	</bean>	
+	
+	
+	<!-- 配置缓存管理器 -->
+	<bean id="cacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
+		<property name="cacheManagerConfigFile" value="classpath:shiro-ehcache.xml"/>
+	</bean>
+	
+	
+	<!-- 配置realm -->
+	<bean id="customRealm" class="cn.zj.logistics.shiro.CustomRealm">
+		<!-- 配置凭证匹配 -->
+		<property name="credentialsMatcher" ref="credentialsMatcher"/>
+	</bean>
+	<!-- 配置凭证匹配 -->
+	<bean id="credentialsMatcher" class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+		<property name="hashAlgorithmName" value="MD5"/>
+		
+		<property name="hashIterations" value="3"/>
+	</bean>
+
+</beans>

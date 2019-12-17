@@ -46,7 +46,7 @@ public class AdminController {
 	@RequiresPermissions("admin:adminPage")
 	@RequestMapping("/adminPage")
 	public String adminPage() {
-		
+		System.out.println("AdminController.adminPage()");
 		return "adminPage";
 	}
 	
